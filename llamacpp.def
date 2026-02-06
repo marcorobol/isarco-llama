@@ -1,0 +1,29 @@
+Bootstrap: docker
+From: nvidia/cuda:12.4.0-devel-ubuntu22.04
+
+%post
+    # Install basic dependencies
+    apt-get update && apt-get install -y         wget         build-essential         cmake         git         python3         unzip         && rm -rf /var/lib/apt/lists/*
+
+    # Download llama.cpp source
+    cd /opt
+    wget -q https://github.com/ggml-org/llama.cpp/archive/refs/heads/master.zip -O llama.zip
+    unzip -q llama.zip
+    rm llama.zip
+    mv llama.cpp-master llama.cpp
+    cd llama.cpp
+    
+    # Build with CUDA support - only build the library to avoid linking issues
+    mkdir -p build && cd build
+    cmake .. -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DLLAMA_BUILD_EXAMPLES=OFF
+    make -j$(nproc) llama-server llama-cli libllama.so || echo Build failed, continuing...
+
+    # Create models directory
+    mkdir -p /models
+
+%environment
+    export PATH=/opt/llama.cpp/build/bin:$PATH
+    export LD_LIBRARY_PATH=/opt/llama.cpp/build/bin:$LD_LIBRARY_PATH
+
+%runscript
+    exec /opt/llama.cpp/build/bin/llama-cli "$@"

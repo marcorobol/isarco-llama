@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  llama-server:
+    image: ghcr.io/ggerganov/llama.cpp:latest-cuda
+    container_name: glm4-server
+    restart: unless-stopped
+    
+    # GPU configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    # Volumes
+    volumes:
+      - ./models:/models:ro
+    
+    # Ports
+    ports:
+      - "8080:8080"
+    
+    # Environment
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1,2,3
+    
+    # Command
+    command: >
+      /opt/llama.cpp/build/bin/llama-server
+      -m /models/glm-4-9b-chat-Q5_K_M.gguf
+      -ngl 99
+      -c 4096
+      --port 8080
+      --host 0.0.0.0
+      -t 8
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

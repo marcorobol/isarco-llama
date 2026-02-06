@@ -1,0 +1,22 @@
+# Singularity images (large binary files)
+*.sif
+
+# Model files (large binary files)
+*.gguf
+models/*.gguf
+
+# Singularity build directory
+llamacpp-sandbox/
+
+# Source code (can be re-downloaded)
+llama.cpp/
+
+# Logs and runtime files
+*.log
+*.pid
+llama-server.log
+
+# Temporary files
+*.swp
+*.swo
+*~
