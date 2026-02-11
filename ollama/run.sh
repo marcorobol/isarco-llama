@@ -56,9 +56,10 @@ start_server() {
         -B "$DATA_DIR:/root/.ollama" \
         -B /etc/ssl/certs:/etc/ssl/certs:ro \
         -B /etc/pki:/etc/pki:ro \
-        --env CUDA_VISIBLE_DEVICES=3 \
+        --env CUDA_VISIBLE_DEVICES=2,3 \
         --env OLLAMA_MODELS=/root/.ollama/models \
-        --env OLLAMA_NUM_GPU=1 \
+        --env OLLAMA_NUM_GPU=2 \
+        --env OLLAMA_SCHED_SPREAD=true \
         "$SIF" \
         ollama serve \
         > "$LOGFILE" 2>&1 &
@@ -163,7 +164,7 @@ run_model() {
 
     singularity exec --nv \
         -B "$DATA_DIR:/root/.ollama" \
-        --env CUDA_VISIBLE_DEVICES=3 \
+        --env CUDA_VISIBLE_DEVICES=2,3 \
         --env OLLAMA_MODELS=/root/.ollama/models \
         "$SIF" \
         ollama run "$model"
@@ -176,7 +177,7 @@ pull_model() {
 
     singularity exec --nv \
         -B "$DATA_DIR:/root/.ollama" \
-        --env CUDA_VISIBLE_DEVICES=3 \
+        --env CUDA_VISIBLE_DEVICES=2,3 \
         --env OLLAMA_MODELS=/root/.ollama/models \
         "$SIF" \
         ollama pull "$model"
