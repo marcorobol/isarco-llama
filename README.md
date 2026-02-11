@@ -2,7 +2,9 @@
 
 ## Overview
 
-This directory contains llama.cpp server setups with CUDA support using Singularity containers. It runs multiple GLM-4.7 model variants on 4x NVIDIA H200 NVL GPUs.
+This directory contains llama.cpp server setups with CUDA support using Singularity containers. It runs multiple large language models including DeepSeek V2.5, GLM-4.7 variants, and Ollama on 4x NVIDIA H200 NVL GPUs.
+
+**See also:** [SYSTEM_CONSTRAINTS.md](SYSTEM_CONSTRAINTS.md) for system limits and constraints.
 
 ## Hardware
 
@@ -13,32 +15,47 @@ This directory contains llama.cpp server setups with CUDA support using Singular
 ## Directory Structure
 
 ```
-llama/
-├── shared/
-│   └── llamacpp-cuda-complete.sif    # Shared Singularity image (4.7GB)
-├── 4401-glm-4.7-q2/                  # GLM-4.7 Q2 quantization (port 4401)
-│   ├── docker-compose.yml
-│   ├── run.sh
-│   └── llamacpp.def
-├── 4402-glm-4.7-flash-q4/            # GLM-4.7-Flash Q4 quantization (port 4402)
-│   ├── docker-compose.yml
-│   ├── run.sh
-│   └── test-client.sh
-└── 4403-glm-4.7-q8/                  # GLM-4.7 Q8 quantization (port 4403)
-    ├── docker-compose.yml
-    ├── run.sh
-    └── test-client.sh
+isarco-llama/
+├── llama/
+│   ├── shared/
+│   │   └── llamacpp-cuda-complete.sif    # Shared Singularity image (4.7GB)
+│   ├── 4401-glm-4.7-q2/                  # GLM-4.7 Q2 quantization (port 4401)
+│   ├── 4402-glm-4.7-flash-q4/            # GLM-4.7-Flash Q4 quantization (port 4402)
+│   ├── 4403-glm-4.7-q8/                  # GLM-4.7 Q8 quantization (port 4403)
+│   └── 5001-deepseek-v2.5-gguf/          # DeepSeek V2.5 GGUF Q6_K (port 5001)
+├── sglang/
+│   └── 30000-deepseek-v2.5/              # DeepSeek V2.5 via SGLang (port 30000)
+├── ollama/                               # Ollama server (port 11434)
+│   └── run.sh
+├── SYSTEM_CONSTRAINTS.md                 # System limits and constraints
+└── README.md                             # This file
 ```
 
 ## Available Services
 
-| Service | Directory | Port | Model | Quantization |
-|---------|-----------|------|-------|--------------|
-| GLM-4.7 Q2 | `llama/4401-glm-4.7-q2/` | 4401 | GLM-4.7 | Q2_K_XL (~135GB) |
-| GLM-4.7-Flash Q4 | `llama/4402-glm-4.7-flash-q4/` | 4402 | GLM-4.7-Flash | Q4_K_XL (~18GB) |
-| GLM-4.7 Q8 | `llama/4403-glm-4.7-q8/` | 4403 | GLM-4.7 | Q8_0 (~250GB) |
+| Service | Directory | Port | Model | Quantization | GPUs |
+|---------|-----------|------|-------|--------------|------|
+| **DeepSeek V2.5 GGUF** | `llama/5001-deepseek-v2.5-gguf/` | 5001 | DeepSeek V2.5 | Q6_K (~193GB) | 0,1 |
+| GLM-4.7 Q2 | `llama/4401-glm-4.7-q2/` | 4401 | GLM-4.7 | Q2_K_XL (~135GB) | 2 |
+| GLM-4.7-Flash Q4 | `llama/4402-glm-4.7-flash-q4/` | 4402 | GLM-4.7-Flash | Q4_K_XL (~18GB) | - |
+| GLM-4.7 Q8 | `llama/4403-glm-4.7-q8/` | 4403 | GLM-4.7 | Q8_0 (~250GB) | - |
+| Ollama | `ollama/` | 11434 | Multiple | Various | 3 |
+| DeepSeek V2.5 SGLang | `sglang/30000-deepseek-v2.5/` | 30000 | DeepSeek V2.5 | FP16/FP8 | 0-3 |
 
 ## Models
+
+### DeepSeek V2.5 GGUF (236B parameter MoE model)
+- **Parameters:** 235.7B total
+- **Architecture:** DeepSeek2 with MLA (Multi-Head Latent Attention)
+- **Context window:** Up to 163,840 tokens
+- **Quantization:** Q6_K (~193GB total)
+- **Expert configuration:** 160 experts, 6 active per token
+- **GPU allocation:** Split across GPUs 0-1 with `--fit on`
+- **Performance:** ~40 tokens/second generation
+- **Required flags:**
+  - `--fit on` - Auto-distribute across available GPUs
+  - `-ngl 99` - Full GPU offload
+  - `--repeat-penalty 1.0` - Disable repeat penalty
 
 ### GLM-4.7 (355B parameter MoE model)
 - **Context window:** Up to 131,072 tokens
@@ -84,17 +101,30 @@ cd llama/4401-glm-4.7-q2
 
 ### Running Multiple Services
 
-All three services can run simultaneously since they use different ports:
+Services can run simultaneously if they don't exceed GPU memory limits:
 
+**Current GPU Allocation:**
+```
+GPU 0: DeepSeek V2.5 GGUF (~116GB)
+GPU 1: DeepSeek V2.5 GGUF (~112GB)
+GPU 2: Available (or GLM-4.7 Q2 when running)
+GPU 3: Ollama (when running)
+```
+
+**Example: Running DeepSeek + Ollama**
 ```bash
-# Terminal 1 - GLM-4.7 Q2 (port 4401)
-cd llama/4401-glm-4.7-q2 && ./run.sh start
+# Terminal 1 - DeepSeek V2.5 GGUF (port 5001, GPUs 0-1)
+cd llama/5001-deepseek-v2.5-gguf && ./run.sh start
 
-# Terminal 2 - GLM-4.7-Flash Q4 (port 4402)
-cd llama/4402-glm-4.7-flash-q4 && ./run.sh start
+# Terminal 2 - Ollama (port 11434, GPU 3)
+cd ollama && ./run.sh start
+```
 
-# Terminal 3 - GLM-4.7 Q8 (port 4403)
-cd llama/4403-glm-4.7-q8 && ./run.sh start
+**Note:** Cannot run GLM-4.7 Q2 and DeepSeek V2.5 GGUF simultaneously (both need GPU 0-1 or GPU 2).
+
+**Checking GPU availability:**
+```bash
+nvidia-smi --query-gpu=index,name,memory.used,memory.total --format=csv
 ```
 
 ### Server Configuration
@@ -108,16 +138,53 @@ Default settings in each service's run.sh:
 
 ### GPU Usage
 
-Each GPU uses approximately 140-150GB of VRAM when running the larger GLM-4.7 models.
+**Current Allocation (DeepSeek V2.5 GGUF running):**
+```
+GPU 0: 116GB / 143GB (DeepSeek V2.5 GGUF)
+GPU 1: 112GB / 143GB (DeepSeek V2.5 GGUF)
+GPU 2: ~0GB / 143GB (Available)
+GPU 3: ~0GB / 143GB (Available for Ollama)
+```
+
+**Alternative Allocation (GLM-4.7 Q2 running):**
+```
+GPU 0-3: ~135GB total distributed (GLM-4.7 Q2)
+```
 
 ```bash
 # Check GPU usage
 nvidia-smi
+
+# Detailed GPU info
+nvidia-smi --query-gpu=index,name,memory.used,memory.total --format=csv
 ```
 
 ## API Endpoints
 
 Each service exposes standard OpenAI-compatible endpoints on its respective port.
+
+### DeepSeek V2.5 GGUF (Port 5001) - Primary Model
+```bash
+# Health check
+curl http://localhost:5001/health
+
+# Chat completions
+curl http://localhost:5001/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "deepseek-v2.5",
+      "messages": [{"role": "user", "content": "Write a Python function to check if a number is prime"}],
+      "max_tokens": 500
+    }'
+
+# Models list
+curl http://localhost:5001/v1/models
+
+# Web UI (built-in)
+# Open http://localhost:5001 in browser
+```
+
+**Performance:** ~40 tokens/second generation
 
 ### GLM-4.7 Q2 (Port 4401)
 ```bash
@@ -155,10 +222,43 @@ curl http://localhost:4403/v1/chat/completions \
     -d '{"model": "glm-4", "messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
+### Ollama (Port 11434)
+```bash
+# List installed models
+curl http://localhost:11434/api/tags
+
+# Generate completion
+curl http://localhost:11434/api/generate \
+    -d '{"model": "llama2", "prompt": "Why is the sky blue?"}'
+
+# Chat completion
+curl http://localhost:11434/api/chat \
+    -d '{
+      "model": "llama2",
+      "messages": [{"role": "user", "content": "Hello!"}]
+    }'
+
+# Pull a model
+cd ollama && ./run.sh pull llama2
+
+# Run interactive model
+cd ollama && ./run.sh run llama2
+```
+
+**Note:** Ollama runs on GPU 3 to avoid conflicts with DeepSeek V2.5 GGUF.
+
 ## Performance
 
+### DeepSeek V2.5 GGUF Q6_K
+- **Prompt processing:** ~40 tokens/second
+- **Generation:** ~40 tokens/second
+- **Memory usage:** ~116GB + 112GB across GPUs 0-1
+- **GPU utilization:** 78-81% VRAM
+- **Context window:** 8192 tokens (configurable up to 163840)
+
+### GLM-4.7
 - **Generation speed:** ~186 tokens/second
-- **Memory per GPU:** ~2.5GB
+- **Memory per GPU:** ~2.5GB for context
 - **GPU utilization:** ~95% during generation
 
 ## Access from Local Machine
@@ -172,9 +272,12 @@ cd ~/Develop/LLM/bears.disi.unitn.it
 ```
 
 Then access at:
+- http://localhost:5001 (DeepSeek V2.5 GGUF) - **Primary model**
 - http://localhost:4401 (GLM-4.7 Q2)
 - http://localhost:4402 (GLM-4.7-Flash Q4)
 - http://localhost:4403 (GLM-4.7 Q8)
+- http://localhost:11434 (Ollama)
+- http://localhost:30000 (DeepSeek V2.5 SGLang)
 
 ## Git Repository
 
@@ -200,9 +303,10 @@ singularity build llamacpp-cuda-complete.sif llamacpp-sandbox/
 ## Troubleshooting
 
 ### Server won't start
-- Check if port is already in use: `lsof -i :4401` (or 4402, 4403)
+- Check if port is already in use: `lsof -i :5001` (or 4401, 4402, 4403, 11434)
 - Check GPU availability: `nvidia-smi`
-- Check logs: `cd llama/4401-glm-4.7-q2 && tail -f llama-server.log`
+- Check logs: `cd llama/5001-deepseek-v2.5-gguf && tail -f llama-server.log`
+- Ensure enough GPU memory: DeepSeek V2.5 needs ~228GB total (GPUs 0-1)
 
 ### Port conflicts
 If you need to change a port, edit both files in the service directory:
@@ -210,9 +314,28 @@ If you need to change a port, edit both files in the service directory:
 - `docker-compose.yml`: Update ports mapping and `--port` flag
 
 ### GPU memory issues
-- Reduce NGP_LAYERS in the service's run.sh
+- **DeepSeek V2.5 GGUF:** Needs ~228GB across GPUs 0-1 with `--fit on`
+- **GLM-4.7 Q2:** Needs ~135GB distributed across all 4 GPUs
+- Reduce NGP_LAYERS in the service's run.sh (default: 99)
 - Check for other GPU processes: `nvidia-smi`
 - Try running services one at a time
+- Use smaller quantization if needed (Q4 instead of Q6/Q8)
+
+### DeepSeek V2.5 GGUF won't load
+**Symptom:** "cudaMalloc failed: out of memory"
+
+**Solutions:**
+1. Ensure `--fit on` flag is set (not `-ts` or tensor split)
+2. Check `CUDA_VISIBLE_DEVICES=0,1` is set correctly
+3. Verify GPUs 0-1 are free: `nvidia-smi`
+4. Stop conflicting services (GLM-4.7 uses all 4 GPUs)
+
+### Model download failed
+**For DeepSeek V2.5 GGUF:**
+```bash
+cd llama/5001-deepseek-v2.5-gguf
+./download.sh  # Resumes automatically
+```
 
 ### Stale PID file
 If server is running but status shows it's not:
@@ -221,5 +344,39 @@ If server is running but status shows it's not:
 ps aux | grep llama-server
 
 # Update PID file
-echo <actual_pid> > ~/isarco-llama/llama/4401-glm-4.7-q2/llama-server.pid
+echo <actual_pid> > ~/isarco-llama/llama/5001-deepseek-v2.5-gguf/llama-server.pid
+```
+
+## System Constraints
+
+**Important limitations to be aware of:**
+- **No sudo access** - Use Singularity instead of Docker
+- **No Docker** - Singularity/Apptainer only
+- **SSL certificates** - Must mount for HTTPS in Singularity:
+  ```bash
+  -B /etc/ssl/certs:/etc/ssl/certs:ro \
+  -B /etc/pki:/etc/pki:ro
+  ```
+- **GPU memory:** ~143GB per GPU, plan model allocation carefully
+- **Storage:** 3.5TB total on /data partition
+
+**See [SYSTEM_CONSTRAINTS.md](SYSTEM_CONSTRAINTS.md) for complete documentation.**
+
+## Quick Start
+
+**Start DeepSeek V2.5 GGUF (recommended for most use cases):**
+```bash
+cd /home/marco.robol/isarco-llama/llama/5001-deepseek-v2.5-gguf
+./run.sh start
+
+# Test
+curl http://localhost:5001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "deepseek-v2.5", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+**Check all running services:**
+```bash
+ps aux | grep -E 'llama-server|ollama|sglang'
+nvidia-smi
 ```

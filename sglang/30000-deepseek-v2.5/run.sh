@@ -4,7 +4,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-source "$SCRIPT_DIR/../.env"
+source "$SCRIPT_DIR/../../.env"
 
 # Configuration
 HOST="0.0.0.0"
@@ -13,7 +13,7 @@ PIDFILE="$SCRIPT_DIR/sglang-server.pid"
 LOGFILE="$SCRIPT_DIR/sglang-server.log"
 MODEL_PATH="/root/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-V2.5-1210"
 DATA_DIR="/data/models/huggingface"
-SIF="$SCRIPT_DIR/sglang.sif"
+SIF="$SCRIPT_DIR/../shared/sglang.sif"
 DOCKER_IMAGE="docker://lmsysorg/sglang:latest"
 
 # Colors
@@ -60,7 +60,7 @@ start_server() {
         pull_image
     fi
 
-    # Start the server with Apptainer
+    # Start the server with Apptainer (all 4 GPUs)
     apptainer run --nv \
         -B "$DATA_DIR:/root/.cache/huggingface" \
         --env "HF_TOKEN=$HF_TOKEN" \
