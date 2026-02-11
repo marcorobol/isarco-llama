@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  llama-server:
+    image: docker://ghcr.io/ggerganov/llama.cpp:latest-cuda
+    container_name: glm4-server
+    hostname: glm4-server
+
+    # GPU configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # Volumes
+    volumes:
+      - /data/models:/models:ro
+
+    # Ports
+    ports:
+      - "4403:4403"
+
+    # Environment
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1,2,3
+
+    # Command
+    # GLM-4.7 models require specific flags:
+    #   --jinja          - Required for correct chat template handling
+    #   --fit on         - Optimize GPU utilization across all available VRAM
+    #   --repeat-penalty 1.0 - Disable repeat penalty (recommended for GLM models)
+    #   --min-p 0.01     - Additional parameter for GLM-4.7-Flash
+    #
+    # Recommended quantizations:
+    #   - GLM-4.7: UD-Q2_K_XL (smaller, faster) or Q4_K_XL (better quality)
+    #   - GLM-4.7-Flash: UD-Q4_K_XL
+    command: >
+      /opt/llama.cpp/build/bin/llama-server
+      -m /models/GLM-4.7-Flash-UD-Q4_K_XL.gguf
+      -ngl 99
+      -c 65536
+      --port 4403
+      --host 0.0.0.0
+      -t 32
+      --jinja
+      --fit on
+      --temp 1.0
+      --top-p 0.95
+      --min-p 0.01
+      --repeat-penalty 1.0
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4403/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

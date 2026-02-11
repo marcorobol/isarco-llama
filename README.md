@@ -2,63 +2,113 @@
 
 ## Overview
 
-This directory contains a llama.cpp server setup with CUDA support using Singularity containers. It runs the GLM-4-9B-Chat model on 4x NVIDIA H200 NVL GPUs.
+This directory contains llama.cpp server setups with CUDA support using Singularity containers. It runs multiple GLM-4.7 model variants on 4x NVIDIA H200 NVL GPUs.
 
 ## Hardware
 
-- **GPUs:** 4x NVIDIA H200 NVL (149.3 GB total VRAM)
+- **GPUs:** 4x NVIDIA H200 NVL (575 GB total VRAM)
 - **CUDA:** 13.1
 - **Singularity:** Apptainer 1.4.5-2
 
-## Files
+## Directory Structure
 
-| File | Description |
-|------|-------------|
-| llamacpp-cuda-complete.sif | Singularity image with llama.cpp + CUDA (4.7GB) |
-| run-glm4-server.sh | Server control script |
-| docker-compose.yml | Docker compose reference (not used on this system) |
-| test-client.sh | Test client for the server |
-| llamacpp.def | Singularity definition file |
-| .gitignore | Git ignore patterns |
+```
+llama/
+├── shared/
+│   └── llamacpp-cuda-complete.sif    # Shared Singularity image (4.7GB)
+├── 4401-glm-4.7-q2/                  # GLM-4.7 Q2 quantization (port 4401)
+│   ├── docker-compose.yml
+│   ├── run.sh
+│   └── llamacpp.def
+├── 4402-glm-4.7-flash-q4/            # GLM-4.7-Flash Q4 quantization (port 4402)
+│   ├── docker-compose.yml
+│   ├── run.sh
+│   └── test-client.sh
+└── 4403-glm-4.7-q8/                  # GLM-4.7 Q8 quantization (port 4403)
+    ├── docker-compose.yml
+    ├── run.sh
+    └── test-client.sh
+```
 
-## Model
+## Available Services
 
-- **Name:** glm-4-9b-chat
-- **Quantization:** Q5_K_M
-- **File:** models/glm-4-9b-chat-Q5_K_M.gguf (6.7GB)
-- **Layers:** 40
-- **GPU offload:** All layers (ngl=99)
+| Service | Directory | Port | Model | Quantization |
+|---------|-----------|------|-------|--------------|
+| GLM-4.7 Q2 | `llama/4401-glm-4.7-q2/` | 4401 | GLM-4.7 | Q2_K_XL (~135GB) |
+| GLM-4.7-Flash Q4 | `llama/4402-glm-4.7-flash-q4/` | 4402 | GLM-4.7-Flash | Q4_K_XL (~18GB) |
+| GLM-4.7 Q8 | `llama/4403-glm-4.7-q8/` | 4403 | GLM-4.7 | Q8_0 (~250GB) |
+
+## Models
+
+### GLM-4.7 (355B parameter MoE model)
+- **Context window:** Up to 131,072 tokens
+- **Quantizations available:** Q2_K_XL (~135GB), Q8_0 (~250GB)
+- **Required flags:**
+  - `--jinja` - Required for correct chat template handling
+  - `--fit on` - Optimize GPU utilization across all available VRAM
+  - `--repeat-penalty 1.0` - Disable repeat penalty (recommended for GLM models)
+
+### GLM-4.7-Flash (30B MoE, ~3.6B active parameters)
+- **Context window:** Up to 202,752 tokens
+- **Quantization:** Q4_K_XL (~18GB)
+- **Additional flags:**
+  - `--min-p 0.01` - Additional parameter for GLM-4.7-Flash
+
+All models use full GPU offload (ngl=99) for maximum performance.
 
 ## Usage
 
 ### Server Control
 
+Each service has its own control script. Example for GLM-4.7 Q2 (port 4401):
+
 ```bash
+# Navigate to service directory
+cd llama/4401-glm-4.7-q2
+
 # Check server status
-./run-glm4-server.sh status
+./run.sh status
 
 # Start server
-./run-glm4-server.sh start
+./run.sh start
 
 # Stop server
-./run-glm4-server.sh stop
+./run.sh stop
 
 # Restart server
-./run-glm4-server.sh restart
+./run.sh restart
+
+# View logs
+./run.sh logs
+```
+
+### Running Multiple Services
+
+All three services can run simultaneously since they use different ports:
+
+```bash
+# Terminal 1 - GLM-4.7 Q2 (port 4401)
+cd llama/4401-glm-4.7-q2 && ./run.sh start
+
+# Terminal 2 - GLM-4.7-Flash Q4 (port 4402)
+cd llama/4402-glm-4.7-flash-q4 && ./run.sh start
+
+# Terminal 3 - GLM-4.7 Q8 (port 4403)
+cd llama/4403-glm-4.7-q8 && ./run.sh start
 ```
 
 ### Server Configuration
 
-Default settings in run-glm4-server.sh:
-- Port: 8080
-- Host: 0.0.0.0 (all interfaces)
-- GPU layers: 99 (all offloaded to GPU)
-- Context size: 8192
-- Threads: 8
+Default settings in each service's run.sh:
+- **Port:** Service-specific (4401, 4402, or 4403)
+- **Host:** 0.0.0.0 (all interfaces)
+- **GPU layers:** 99 (all offloaded to GPU)
+- **Context size:** 65536 (configurable up to 131072 for GLM-4.7, 202752 for Flash)
+- **Threads:** 32
 
 ### GPU Usage
 
-When running, each GPU uses approximately 2.3-2.9GB of VRAM.
+Each GPU uses approximately 140-150GB of VRAM when running the larger GLM-4.7 models.
 
 ```bash
 # Check GPU usage
@@ -67,22 +117,42 @@ nvidia-smi
 
 ## API Endpoints
 
-### Health Check
-```bash
-curl http://localhost:8080/health
-# Response: {"status":"ok"}
-```
+Each service exposes standard OpenAI-compatible endpoints on its respective port.
 
-### Chat Completions
+### GLM-4.7 Q2 (Port 4401)
 ```bash
-curl http://localhost:8080/v1/chat/completions \
+# Health check
+curl http://localhost:4401/health
+
+# Chat completions
+curl http://localhost:4401/v1/chat/completions \
     -H "Content-Type: application/json" \
     -d '{"model": "glm-4", "messages": [{"role": "user", "content": "Hello!"}]}'
+
+# Models list
+curl http://localhost:4401/v1/models
 ```
 
-### Models List
+### GLM-4.7-Flash Q4 (Port 4402)
 ```bash
-curl http://localhost:8080/v1/models
+# Health check
+curl http://localhost:4402/health
+
+# Chat completions
+curl http://localhost:4402/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{"model": "glm-4-flash", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+### GLM-4.7 Q8 (Port 4403)
+```bash
+# Health check
+curl http://localhost:4403/health
+
+# Chat completions
+curl http://localhost:4403/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{"model": "glm-4", "messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
 ## Performance
@@ -93,7 +163,7 @@ curl http://localhost:8080/v1/models
 
 ## Access from Local Machine
 
-To access this server from your local machine, use the SSH tunnel setup in ~/Develop/LLM/bears.disi.unitn.it/:
+To access these servers from your local machine, use the SSH tunnel setup in ~/Develop/LLM/bears.disi.unitn.it/:
 
 ```bash
 # On local machine
@@ -101,7 +171,10 @@ cd ~/Develop/LLM/bears.disi.unitn.it
 ./tunnel.sh start
 ```
 
-Then access at http://localhost:8080.
+Then access at:
+- http://localhost:4401 (GLM-4.7 Q2)
+- http://localhost:4402 (GLM-4.7-Flash Q4)
+- http://localhost:4403 (GLM-4.7 Q8)
 
 ## Git Repository
 
@@ -127,13 +200,19 @@ singularity build llamacpp-cuda-complete.sif llamacpp-sandbox/
 ## Troubleshooting
 
 ### Server won't start
-- Check if port 8080 is already in use: `lsof -i :8080`
+- Check if port is already in use: `lsof -i :4401` (or 4402, 4403)
 - Check GPU availability: `nvidia-smi`
-- Check logs: `tail -f llama-server.log`
+- Check logs: `cd llama/4401-glm-4.7-q2 && tail -f llama-server.log`
+
+### Port conflicts
+If you need to change a port, edit both files in the service directory:
+- `run.sh`: Update `PORT=` variable
+- `docker-compose.yml`: Update ports mapping and `--port` flag
 
 ### GPU memory issues
-- Reduce NGP_LAYERS in run-glm4-server.sh
+- Reduce NGP_LAYERS in the service's run.sh
 - Check for other GPU processes: `nvidia-smi`
+- Try running services one at a time
 
 ### Stale PID file
 If server is running but status shows it's not:
@@ -142,5 +221,5 @@ If server is running but status shows it's not:
 ps aux | grep llama-server
 
 # Update PID file
-echo <actual_pid> > ~/localai/llama-server.pid
+echo <actual_pid> > ~/isarco-llama/llama/4401-glm-4.7-q2/llama-server.pid
 ```

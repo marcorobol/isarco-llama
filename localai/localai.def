@@ -1,0 +1,5 @@
+Bootstrap: docker
+From: quay.io/go-skynet/local-ai:latest-gpu-nvidia-cuda-13
+
+%environment
+    export PATH="/usr/local/bin:${PATH}"

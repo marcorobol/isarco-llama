@@ -9,6 +9,7 @@ if [ -z "$1" ]; then
 fi
 
 TOKEN="$1"
-REPO="https://${TOKEN}@github.com/marcorobol/isarco-llama.git"
 
-singularity exec ~/localai/llamacpp-cuda-complete.sif git push -u origin master
+# git is only available inside the Singularity container
+# Use token for authentication
+singularity exec git.sif bash -c "git remote set-url origin https://${TOKEN}@github.com/marcorobol/isarco-llama.git && git push -u origin master && git remote set-url origin https://github.com/marcorobol/isarco-llama.git"

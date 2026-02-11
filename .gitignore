@@ -5,6 +5,9 @@
 *.gguf
 models/*.gguf
 
+# Backends
+backends/*
+
 # Singularity build directory
 llamacpp-sandbox/
 
@@ -20,3 +23,5 @@ llama-server.log
 *.swp
 *.swo
 *~
+
+.env

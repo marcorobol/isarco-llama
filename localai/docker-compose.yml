@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  localai:
+    image: docker://quay.io/localai/localai:latest-cuda
+    container_name: localai-server
+    hostname: localai-server
+
+    # GPU configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # Volumes
+    volumes:
+      - /data/models:/models:ro
+      - ./glm-4.7.yaml:/home/marco.robol/models/glm-4.7.yaml:ro
+      - ./backends:/var/lib/localai/backends:ro
+
+    # Ports
+    ports:
+      - "8081:8081"
+
+    # Environment
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1,2,3
+      - LOCALAI_P2P=false
+      - P2P=false
+      - BACKEND_GALLERIES=[]
+      - GALLERIES=[]
+
+    # Command
+    command: >
+      /local-ai run
+      --address=:8081
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

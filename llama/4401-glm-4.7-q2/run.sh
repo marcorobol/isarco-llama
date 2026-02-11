@@ -1,20 +1,40 @@
 #!/bin/bash
-# Singularity run script for GLM-4 llama-server
-# Usage: ./run-glm4-server.sh [start|stop|restart|status|logs]
+# Startup script for GLM-4.7 llama-server
+# Usage: ./run.sh [start|stop|restart|status|logs]
+#
+# GLM-4.7 (355B parameter MoE model)
+# Context window: up to 131,072 tokens
+# Recommended quantization: UD-Q2_K_XL (~135GB) or Q4_K_XL (~250GB)
+#
+# Required flags:
+#   --jinja          - Required for correct chat template handling
+#   --fit on         - Optimize GPU utilization across all available VRAM
+#   --repeat-penalty 1.0 - Disable repeat penalty (recommended for GLM models)
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SIF="$SCRIPT_DIR/llamacpp-cuda-complete.sif"
-MODEL="$SCRIPT_DIR/models/glm-4-9b-chat-Q5_K_M.gguf"
+SIF="$SCRIPT_DIR/../shared/llamacpp-cuda-complete.sif"
+
+# Model configuration
+MODEL_NAME="GLM-4.7-UD-Q2_K_XL-00001-of-00003.gguf"
+MODEL_DIR="/data/models/GLM-4.7-GGUF/UD-Q2_K_XL"
+MODEL="$MODEL_DIR/$MODEL_NAME"
+
 HOST="0.0.0.0"
-PORT=8080
+PORT=4401
+GPU_DEVICES="0,1,2,3"  # GPUs to use (comma-separated, e.g., "0,1,2,3" or "0" for single GPU)
 NGPUS=4
 NGP_LAYERS=99
-CTX_SIZE=4096
-THREADS=8
+CTX_SIZE=65536  # GLM-4.7 supports up to 131072
+THREADS=32
 PIDFILE="$SCRIPT_DIR/llama-server.pid"
 LOGFILE="$SCRIPT_DIR/llama-server.log"
+
+# Generation parameters (Z.ai recommended)
+TEMP=1.0
+TOP_P=0.95
+REPEAT_PENALTY=1.0  # Disable repeat penalty (recommended)
 
 # Colors
 RED='\033[0;31m'
@@ -37,25 +57,33 @@ start_server() {
         echo -e "${YELLOW}Server is already running (PID: $(cat $PIDFILE))${NC}"
         return 1
     fi
-    
-    echo -e "${GREEN}Starting GLM-4 llama-server...${NC}"
+
+    echo -e "${GREEN}Starting GLM-4.7 llama-server...${NC}"
     echo "Model: $MODEL"
     echo "GPUs: $NGPUS"
     echo "Port: $PORT"
-    
+    echo "Context: $CTX_SIZE tokens"
+
     cd "$SCRIPT_DIR"
-    nohup singularity exec --nv -B "$SCRIPT_DIR/models:/models" "$SIF" \
+    nohup singularity exec --nv -B "/data/models:/models" \
+        --env "CUDA_VISIBLE_DEVICES=$GPU_DEVICES" \
+        "$SIF" \
         /opt/llama.cpp/build/bin/llama-server \
-        -m "/models/$(basename "$MODEL")" \
+        -m "/models/$MODEL_NAME" \
         -ngl $NGP_LAYERS \
         -c $CTX_SIZE \
         --port $PORT \
         --host "$HOST" \
         -t $THREADS \
+        --jinja \
+        --fit on \
+        --temp $TEMP \
+        --top-p $TOP_P \
+        --repeat-penalty $REPEAT_PENALTY \
         > "$LOGFILE" 2>&1 &
-    
+
     echo $! > "$PIDFILE"
-    
+
     # Wait for server to be ready
     echo "Waiting for server to start..."
     for i in {1..30}; do
@@ -67,7 +95,7 @@ start_server() {
         fi
         sleep 2
     done
-    
+
     echo -e "${RED}Server failed to start. Check logs at $LOGFILE${NC}"
     return 1
 }
@@ -77,12 +105,12 @@ stop_server() {
         echo -e "${YELLOW}Server is not running${NC}"
         return 1
     fi
-    
+
     PID=$(cat "$PIDFILE")
     echo -e "${GREEN}Stopping server (PID: $PID)...${NC}"
     kill $PID
     rm -f "$PIDFILE"
-    
+
     # Wait for process to end
     for i in {1..10}; do
         if ! ps -p $PID > /dev/null 2>&1; then
@@ -91,7 +119,7 @@ stop_server() {
         fi
         sleep 1
     done
-    
+
     echo -e "${YELLOW}Force killing server...${NC}"
     kill -9 $PID
     rm -f "$PIDFILE"
@@ -100,26 +128,26 @@ stop_server() {
 status_server() {
     if check_server; then
         PID=$(cat "$PIDFILE")
-        echo -e "${GREEN}Server is running (PID: $PID)${NC}"
-        
+        echo -e "${GREEN}GLM-4.7 server is running (PID: $PID)${NC}"
+
         # Show GPU usage
         echo ""
         echo "GPU Usage:"
         nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total --format=csv,noheader
-        
+
         # Show health
         if curl -s "http://localhost:$PORT/health" > /dev/null 2>&1; then
             echo -e "${GREEN}Health: OK${NC}"
         else
             echo -e "${RED}Health: FAILED${NC}"
         fi
-        
+
         echo ""
         echo "API Endpoints:"
         echo "  - Health: http://localhost:$PORT/health"
         echo "  - Chat: http://localhost:$PORT/v1/chat/completions"
         echo "  - Models: http://localhost:$PORT/v1/models"
-        
+
         return 0
     else
         echo -e "${RED}Server is not running${NC}"
