@@ -7,7 +7,7 @@
   options:
       - use_jinja:true
   parameters:
-    model: GLM-4.7-Q8_0/GLM-4.7-Q8_0-00001-of-00008.gguf
+    model: GLM-4.7-Q8_0-GGUF/GLM-4.7-Q8_0-00001-of-00008.gguf
     f16_kv: true
     temperature: 0.7
     top_p: 0.9
@@ -31,7 +31,7 @@
   options:
       - use_jinja:true
   parameters:
-      model: GLM-4.7-Flash-Q8_0/GLM-4.7-Flash-Q8_0.gguf
+      model: GLM-4.7-Flash-Q8_0-GGUF/GLM-4.7-Flash-Q8_0.gguf
       temperature: 1.0
       top_p: 1.0
       min_p: 0.01

@@ -1,8 +1,8 @@
-# llama.cpp with CUDA on isarco01.disi.unitn.it
+# LLM Server Suite on isarco01.disi.unitn.it
 
 ## Overview
 
-This directory contains llama.cpp server setups with CUDA support using Singularity containers. It runs multiple large language models including DeepSeek V2.5, GLM-4.7 variants, and Ollama on 4x NVIDIA H200 NVL GPUs.
+This directory contains multiple LLM server backends including llama.cpp, SGLang, Ollama, and LocalAI. It runs various large language models including DeepSeek V2.5, GLM-4.7 variants, Codestral, CodeLlama, and more on 4x NVIDIA H200 NVL GPUs.
 
 **See also:** [SYSTEM_CONSTRAINTS.md](SYSTEM_CONSTRAINTS.md) for system limits and constraints.
 
@@ -16,31 +16,41 @@ This directory contains llama.cpp server setups with CUDA support using Singular
 
 ```
 isarco-llama/
-├── llama/
+├── llama/                                # llama.cpp servers
 │   ├── shared/
-│   │   └── llamacpp-cuda-complete.sif    # Shared Singularity image (4.7GB)
-│   ├── 4401-glm-4.7-q2/                  # GLM-4.7 Q2 quantization (port 4401)
-│   ├── 4402-glm-4.7-flash-q4/            # GLM-4.7-Flash Q4 quantization (port 4402)
-│   ├── 4403-glm-4.7-q8/                  # GLM-4.7 Q8 quantization (port 4403)
-│   └── 5001-deepseek-v2.5-gguf/          # DeepSeek V2.5 GGUF Q6_K (port 5001)
-├── sglang/
-│   └── 30000-deepseek-v2.5/              # DeepSeek V2.5 via SGLang (port 30000)
-├── ollama/                               # Ollama server (port 11434)
-│   └── run.sh
+│   │   └── llamacpp-cuda-complete.sif   # Shared Singularity image (~4.7GB)
+│   ├── 4401-glm-4.7-q2/                 # GLM-4.7 Q2 quantization (port 4401)
+│   ├── 4402-glm-4.7-flash-q4/           # GLM-4.7-Flash Q4 quantization (port 4402)
+│   ├── 4403-glm-4.7-q8/                 # GLM-4.7-Flash Q4 quantization (port 4403)
+│   └── 5001-deepseek-v2.5-gguf/         # DeepSeek V2.5 GGUF Q6_K (port 5001)
+├── sglang/                               # SGLang servers
+│   ├── shared/
+│   │   └── sglang.sif                    # Shared SGLang Singularity image
+│   ├── 30000-deepseek-v2.5/             # DeepSeek V2.5 FP16 (port 30000)
+│   ├── 30001-codellama-34b/             # CodeLlama 34B Instruct (port 30001)
+│   └── 30002-codestral-22b/             # Codestral 22B v0.1 (port 30002)
+├── ollama/                               # Ollama model management (port 11434)
+├── localai/                              # LocalAI OpenAI-compatible API (port 8081)
 ├── SYSTEM_CONSTRAINTS.md                 # System limits and constraints
 └── README.md                             # This file
 ```
 
 ## Available Services
 
-| Service | Directory | Port | Model | Quantization | GPUs |
-|---------|-----------|------|-------|--------------|------|
-| **DeepSeek V2.5 GGUF** | `llama/5001-deepseek-v2.5-gguf/` | 5001 | DeepSeek V2.5 | Q6_K (~193GB) | 0,1 |
-| GLM-4.7 Q2 | `llama/4401-glm-4.7-q2/` | 4401 | GLM-4.7 | Q2_K_XL (~135GB) | 2 |
-| GLM-4.7-Flash Q4 | `llama/4402-glm-4.7-flash-q4/` | 4402 | GLM-4.7-Flash | Q4_K_XL (~18GB) | - |
-| GLM-4.7 Q8 | `llama/4403-glm-4.7-q8/` | 4403 | GLM-4.7 | Q8_0 (~250GB) | - |
+| Service | Directory | Port | Model | Quantization/Backend | GPUs |
+|---------|-----------|------|-------|---------------------|------|
+| **SGLang Servers** |
+| DeepSeek V2.5 | `sglang/30000-deepseek-v2.5/` | 30000 | DeepSeek V2.5 | FP16/FP8, TP=4 | 0-3 |
+| CodeLlama 34B | `sglang/30001-codellama-34b/` | 30001 | CodeLlama-34b-Instruct | FP16, TP=2 | 0,1 |
+| Codestral 22B | `sglang/30002-codestral-22b/` | 30002 | Codestral-22B-v0.1 | FP16, TP=1 | 1 |
+| **llama.cpp Servers** |
+| DeepSeek V2.5 | `llama/5001-deepseek-v2.5-gguf/` | 5001 | DeepSeek V2.5 | Q6_K (~193GB) | 0,1 |
+| GLM-4.7 Q2 | `llama/4401-glm-4.7-q2/` | 4401 | GLM-4.7 | Q2_K_XL (~135GB) | 0-3 |
+| GLM-4.7-Flash Q4 | `llama/4402-glm-4.7-flash-q4/` | 4402 | GLM-4.7-Flash | Q4_K_XL (~18GB) | 0-3 |
+| GLM-4.7-Flash Q4 #2 | `llama/4403-glm-4.7-q8/` | 4403 | GLM-4.7-Flash | Q4_K_XL (~18GB) | 0-3 |
+| **Other Servers** |
 | Ollama | `ollama/` | 11434 | Multiple | Various | 3 |
-| DeepSeek V2.5 SGLang | `sglang/30000-deepseek-v2.5/` | 30000 | DeepSeek V2.5 | FP16/FP8 | 0-3 |
+| LocalAI | `localai/` | 8081 | GLM-4.7 variants | llama-cpp | 2,3 |
 
 ## Models
 
@@ -110,6 +120,26 @@ GPU 1: DeepSeek V2.5 GGUF (~112GB)
 GPU 2: Available (or GLM-4.7 Q2 when running)
 GPU 3: Ollama (when running)
 ```
+
+#### CUDA MPS (Multi-Process Service)
+
+CUDA MPS allows multiple models to share the same GPU more efficiently by multiplexing GPU contexts. This is particularly useful when running smaller models concurrently.
+
+**To enable CUDA MPS**:
+```bash
+# Start CUDA MPS to allow multiple models per GPU
+# https://amirsojodoodi.github.io/posts/Enabling-MPS/
+echo "Starting CUDA MPS daemon"
+nvidia-cuda-mps-control -d
+```
+
+**Benefits:**
+- Better GPU utilization when running multiple smaller models
+- Reduced memory overhead for multiple processes
+- Improved throughput for concurrent inference
+
+**Notes:**
+- See [https://amirsojodi.github.io/posts/Enabling-MPS/](https://amirsojodi.github.io/posts/Enabling-MPS/) for details
 
 **Example: Running DeepSeek + Ollama**
 ```bash
@@ -247,6 +277,64 @@ cd ollama && ./run.sh run llama2
 
 **Note:** Ollama runs on GPU 3 to avoid conflicts with DeepSeek V2.5 GGUF.
 
+### SGLang Services
+
+#### DeepSeek V2.5 (Port 30000)
+```bash
+# Health check
+curl http://localhost:30000/health
+
+# Chat completions
+curl http://localhost:30000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-ai/DeepSeek-V2.5",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+#### CodeLlama 34B (Port 30001)
+```bash
+# Health check
+curl http://localhost:30001/health
+
+# Chat completions
+curl http://localhost:30001/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "codellama/CodeLlama-34b-Instruct-hf",
+    "messages": [{"role": "user", "content": "Write a Python hello world"}]
+  }'
+```
+
+#### Codestral 22B (Port 30002)
+```bash
+# Health check
+curl http://localhost:30002/health
+
+# Chat completions
+curl http://localhost:30002/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "mistralai/Codestral-22B-v0.1",
+    "messages": [{"role": "user", "content": "Write a Python hello world"}]
+  }'
+```
+
+### LocalAI (Port 8081)
+```bash
+# List models
+curl http://localhost:8081/v1/models
+
+# Chat completions (OpenAI-compatible)
+curl http://localhost:8081/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "GLM-4.7-Q8_0",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
 ## Performance
 
 ### DeepSeek V2.5 GGUF Q6_K
@@ -272,12 +360,15 @@ cd ~/Develop/LLM/bears.disi.unitn.it
 ```
 
 Then access at:
-- http://localhost:5001 (DeepSeek V2.5 GGUF) - **Primary model**
+- http://localhost:5001 (DeepSeek V2.5 GGUF) - **Primary llama.cpp model**
 - http://localhost:4401 (GLM-4.7 Q2)
 - http://localhost:4402 (GLM-4.7-Flash Q4)
-- http://localhost:4403 (GLM-4.7 Q8)
+- http://localhost:4403 (GLM-4.7-Flash Q4 #2)
 - http://localhost:11434 (Ollama)
-- http://localhost:30000 (DeepSeek V2.5 SGLang)
+- http://localhost:30000 (DeepSeek V2.5 SGLang) - **Primary SGLang model**
+- http://localhost:30001 (CodeLlama 34B SGLang)
+- http://localhost:30002 (Codestral 22B SGLang)
+- http://localhost:8081 (LocalAI)
 
 ## Git Repository
 
@@ -303,20 +394,25 @@ singularity build llamacpp-cuda-complete.sif llamacpp-sandbox/
 ## Troubleshooting
 
 ### Server won't start
-- Check if port is already in use: `lsof -i :5001` (or 4401, 4402, 4403, 11434)
+- Check if port is already in use: `lsof -i :5001` (or 30000-30002, 4401-4403, 8081, 11434)
 - Check GPU availability: `nvidia-smi`
-- Check logs: `cd llama/5001-deepseek-v2.5-gguf && tail -f llama-server.log`
-- Ensure enough GPU memory: DeepSeek V2.5 needs ~228GB total (GPUs 0-1)
+- Check logs: `cd <service-dir> && ./run.sh logs`
+- Ensure enough GPU memory for your chosen service
 
 ### Port conflicts
-If you need to change a port, edit both files in the service directory:
-- `run.sh`: Update `PORT=` variable
-- `docker-compose.yml`: Update ports mapping and `--port` flag
+If you need to change a port, edit files in service directory:
+- **SGLang:** Edit `run.sh` and update `PORT=` variable
+- **llama.cpp:** Edit `run.sh` and update `PORT=` variable
+- **Ollama:** Edit `run.sh` and update `PORT=` variable
+- **LocalAI:** Edit `run.sh` and update `PORT=` variable
 
 ### GPU memory issues
 - **DeepSeek V2.5 GGUF:** Needs ~228GB across GPUs 0-1 with `--fit on`
+- **DeepSeek V2.5 SGLang:** Needs ~544GB across GPUs 0-3
+- **CodeLlama 34B SGLang:** Needs ~68GB across GPUs 0-1
+- **Codestral 22B SGLang:** Needs ~26GB on GPU 1
 - **GLM-4.7 Q2:** Needs ~135GB distributed across all 4 GPUs
-- Reduce NGP_LAYERS in the service's run.sh (default: 99)
+- Reduce GPU layers in the service's run.sh (default: 99)
 - Check for other GPU processes: `nvidia-smi`
 - Try running services one at a time
 - Use smaller quantization if needed (Q4 instead of Q6/Q8)
@@ -364,7 +460,7 @@ echo <actual_pid> > ~/isarco-llama/llama/5001-deepseek-v2.5-gguf/llama-server.pi
 
 ## Quick Start
 
-**Start DeepSeek V2.5 GGUF (recommended for most use cases):**
+**Start DeepSeek V2.5 GGUF (llama.cpp, recommended for most use cases):**
 ```bash
 cd /home/marco.robol/isarco-llama/llama/5001-deepseek-v2.5-gguf
 ./run.sh start
@@ -375,8 +471,19 @@ curl http://localhost:5001/v1/chat/completions \
   -d '{"model": "deepseek-v2.5", "messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
+**Start DeepSeek V2.5 SGLang (higher quality, more memory):**
+```bash
+cd /home/marco.robol/isarco-llama/sglang/30000-deepseek-v2.5
+./run.sh start
+
+# Test
+curl http://localhost:30000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "deepseek-ai/DeepSeek-V2.5", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
 **Check all running services:**
 ```bash
-ps aux | grep -E 'llama-server|ollama|sglang'
+ps aux | grep -E 'llama-server|ollama|sglang|localai'
 nvidia-smi
 ```

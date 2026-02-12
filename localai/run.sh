@@ -6,8 +6,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SIF="$SCRIPT_DIR/localai.sif"
-MODELS_YAML="$SCRIPT_DIR/localai-models.yaml"
-MODELS_DIR="/data/models"
 HOST="0.0.0.0"
 PORT=8081
 PIDFILE="$SCRIPT_DIR/localai.pid"
@@ -52,8 +50,8 @@ start_server() {
 
     # Start CUDA MPS to allow multiple models per GPU
     # https://amirsojoodi.github.io/posts/Enabling-MPS/
-    echo "Starting CUDA MPS daemon"
-    nvidia-cuda-mps-control -d
+    # echo "Starting CUDA MPS daemon"
+    # nvidia-cuda-mps-control -d
 
     # Start LocalAI in standalone mode (no P2P, port 8081)
     # Mount SSL certificates for gallery access
