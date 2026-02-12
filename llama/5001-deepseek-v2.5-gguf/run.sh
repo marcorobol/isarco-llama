@@ -17,7 +17,7 @@ MODEL="$MODEL_DIR/$MODEL_NAME"
 
 HOST="0.0.0.0"
 PORT=5001
-GPU_DEVICES="0,1"  # TS=2 split for 2 GPUs
+GPU_DEVICES="2,3"  # TS=2 split for 2 GPUs
 NGPUS=2
 NGP_LAYERS=99
 CTX_SIZE=8192  # DeepSeek V2.5 supports longer contexts, adjust as needed

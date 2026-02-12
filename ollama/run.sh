@@ -53,13 +53,14 @@ start_server() {
     fi
 
     nohup singularity exec --nv \
+        --env GGML_CUDA_ENABLE_UNIFIED_MEMORY=1 \
         -B "$DATA_DIR:/root/.ollama" \
         -B /etc/ssl/certs:/etc/ssl/certs:ro \
         -B /etc/pki:/etc/pki:ro \
-        --env CUDA_VISIBLE_DEVICES=2,3 \
+        --env CUDA_VISIBLE_DEVICES=3 \
         --env OLLAMA_MODELS=/root/.ollama/models \
-        --env OLLAMA_NUM_GPU=2 \
-        --env OLLAMA_SCHED_SPREAD=true \
+        --env OLLAMA_NUM_GPU=1 \
+        --env OLLAMA_MAX_LOADED_MODELS=6 \
         "$SIF" \
         ollama serve \
         > "$LOGFILE" 2>&1 &
@@ -162,9 +163,9 @@ run_model() {
 
     echo -e "${GREEN}Running model: $model${NC}"
 
-    singularity exec --nv \
+    singularity exec \
         -B "$DATA_DIR:/root/.ollama" \
-        --env CUDA_VISIBLE_DEVICES=2,3 \
+        --env CUDA_VISIBLE_DEVICES= \
         --env OLLAMA_MODELS=/root/.ollama/models \
         "$SIF" \
         ollama run "$model"
@@ -175,9 +176,9 @@ pull_model() {
 
     echo -e "${GREEN}Pulling model: $model${NC}"
 
-    singularity exec --nv \
+    singularity exec \
         -B "$DATA_DIR:/root/.ollama" \
-        --env CUDA_VISIBLE_DEVICES=2,3 \
+        --env CUDA_VISIBLE_DEVICES= \
         --env OLLAMA_MODELS=/root/.ollama/models \
         "$SIF" \
         ollama pull "$model"

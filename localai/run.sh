@@ -50,9 +50,15 @@ start_server() {
         return 1
     fi
 
+    # Start CUDA MPS to allow multiple models per GPU
+    # https://amirsojoodi.github.io/posts/Enabling-MPS/
+    echo "Starting CUDA MPS daemon"
+    nvidia-cuda-mps-control -d
+
     # Start LocalAI in standalone mode (no P2P, port 8081)
     # Mount SSL certificates for gallery access
     nohup singularity exec --nv \
+        --env CUDA_VISIBLE_DEVICES=2,3 \
         -B "/data/models:/models" \
         -B /etc/ssl/certs:/etc/ssl/certs:ro \
         -B /etc/pki:/etc/pki:ro \
