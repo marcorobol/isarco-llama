@@ -24,7 +24,6 @@ MODEL="$MODEL_DIR/$MODEL_NAME"
 HOST="0.0.0.0"
 PORT=4401
 GPU_DEVICES="0,1,2,3"  # GPUs to use (comma-separated, e.g., "0,1,2,3" or "0" for single GPU)
-NGPUS=4
 NGP_LAYERS=99
 CTX_SIZE=65536  # GLM-4.7 supports up to 131072
 THREADS=32
@@ -60,7 +59,6 @@ start_server() {
 
     echo -e "${GREEN}Starting GLM-4.7 llama-server...${NC}"
     echo "Model: $MODEL"
-    echo "GPUs: $NGPUS"
     echo "Port: $PORT"
     echo "Context: $CTX_SIZE tokens"
 

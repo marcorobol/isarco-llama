@@ -33,7 +33,12 @@ SINGULARITY_OPTS=(
     -B "/data/models:/models"
     -B /etc/ssl/certs:/etc/ssl/certs:ro
     -B /etc/pki:/etc/pki:ro
+    -B "/data/models/huggingface:/root/.cache/huggingface" \
+    --env "HF_TOKEN=$HF_TOKEN" \
+    --env "PYTHONUNBUFFERED=1" \
+    --env "HUGGINGFACE_HUB_CACHE=/root/.cache/huggingface" \
 )
 
 # Run local-ai CLI with provided arguments
-singularity exec "${SINGULARITY_OPTS[@]}" "$SIF" /local-ai "$@"
+# singularity exec "${SINGULARITY_OPTS[@]}" "$SIF" /local-ai "$@"
+singularity exec "${SINGULARITY_OPTS[@]}" "$SIF" bash

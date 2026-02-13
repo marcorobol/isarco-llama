@@ -57,7 +57,7 @@ start_server() {
         -B "$DATA_DIR:/root/.ollama" \
         -B /etc/ssl/certs:/etc/ssl/certs:ro \
         -B /etc/pki:/etc/pki:ro \
-        --env CUDA_VISIBLE_DEVICES=3 \
+        --env CUDA_VISIBLE_DEVICES= \
         --env OLLAMA_MODELS=/root/.ollama/models \
         --env OLLAMA_NUM_GPU=1 \
         --env OLLAMA_MAX_LOADED_MODELS=6 \

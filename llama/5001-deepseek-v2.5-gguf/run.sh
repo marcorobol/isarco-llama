@@ -12,13 +12,12 @@ SIF="$SCRIPT_DIR/../shared/llamacpp-cuda-complete.sif"
 
 # Model configuration
 MODEL_NAME="DeepSeek-V2.5-Q6_K-00001-of-00005.gguf"
-MODEL_DIR="/data/models/DeepSeek-V2.5-GGUF/Q6_K"
+MODEL_DIR="/data/models/DeepSeek-V2.5-Q6_K-GGUF"
 MODEL="$MODEL_DIR/$MODEL_NAME"
 
 HOST="0.0.0.0"
 PORT=5001
 GPU_DEVICES="2,3"  # TS=2 split for 2 GPUs
-NGPUS=2
 NGP_LAYERS=99
 CTX_SIZE=8192  # DeepSeek V2.5 supports longer contexts, adjust as needed
 THREADS=32
@@ -65,7 +64,7 @@ start_server() {
         --env "CUDA_VISIBLE_DEVICES=$GPU_DEVICES" \
         "$SIF" \
         /opt/llama.cpp/build/bin/llama-server \
-        -m "/models/DeepSeek-V2.5-GGUF/Q6_K/$MODEL_NAME" \
+        -m "/models/DeepSeek-V2.5-Q6_K-GGUF/$MODEL_NAME" \
         -ngl $NGP_LAYERS \
         -c $CTX_SIZE \
         --port $PORT \

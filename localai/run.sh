@@ -56,10 +56,14 @@ start_server() {
     # Start LocalAI in standalone mode (no P2P, port 8081)
     # Mount SSL certificates for gallery access
     nohup singularity exec --nv \
-        --env CUDA_VISIBLE_DEVICES=2,3 \
+        --env CUDA_VISIBLE_DEVICES= \
         -B "/data/models:/models" \
         -B /etc/ssl/certs:/etc/ssl/certs:ro \
         -B /etc/pki:/etc/pki:ro \
+        -B "/data/models/huggingface:/root/.cache/huggingface" \
+        --env "HF_TOKEN=$HF_TOKEN" \
+        --env "PYTHONUNBUFFERED=1" \
+        --env "HUGGINGFACE_HUB_CACHE=/root/.cache/huggingface" \
         "$SIF" \
         /local-ai run \
         --models-path=/models \

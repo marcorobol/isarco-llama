@@ -2,38 +2,67 @@
 # Backend: llama-cpp with CUDA support
 # Note: GLM-4 requires using the model's built-in Jinja template
 
-- name: GLM-4.7-Q8_0
-  backend: cuda13-llama-cpp
-  options:
-      - use_jinja:true
-  parameters:
-    model: GLM-4.7-Q8_0-GGUF/GLM-4.7-Q8_0-00001-of-00008.gguf
-    f16_kv: true
-    temperature: 0.7
-    top_p: 0.9
-    top_k: 40
-    max_tokens: 2048
-  threads: 8
-  context_size: 16384
-  gpu_layers: 99
-  template:
-    use_tokenizer_template: true
-    # Enable Jinja template support (required for GLM-4)
-
 - name: GLM-4.7-Flash-Q8_0
   backend: llama-cpp
   description: Imported from huggingface://unsloth/GLM-4.7-Flash-GGUF/GLM-4.7-Flash-Q8_0.gguf
   function:
-      grammar:
-          disable: true
+    grammar:
+      disable: true
   known_usecases:
-      - chat
+    - chat
   options:
-      - use_jinja:true
+    - use_jinja:true
   parameters:
-      model: GLM-4.7-Flash-Q8_0-GGUF/GLM-4.7-Flash-Q8_0.gguf
-      temperature: 1.0
-      top_p: 1.0
-      min_p: 0.01
+    model: huggingface://unsloth/GLM-4.7-Flash-GGUF/GLM-4.7-Flash-Q8_0.gguf
+    temperature: 1.0
+    top_p: 1.0
+    min_p: 0.01
   template:
-      use_tokenizer_template: true
+    use_tokenizer_template: true
+
+- name: Codestral-22B-v0.1-Q6_K.gguf
+  backend: llama-cpp
+  description: Imported from huggingface://bartowski/Codestral-22B-v0.1-GGUF/Codestral-22B-v0.1-Q6_K.gguf
+  function:
+    grammar:
+      disable: true
+  nown_usecases:
+    - chat
+  parameters:
+    model: huggingface://bartowski/Codestral-22B-v0.1-GGUF/Codestral-22B-v0.1-Q6_K.gguf
+    gpu_layers: -1
+    context_size: 32768
+    temperature: 0.3
+    top_p: 0.95
+    repeat_penalty: 1.1
+  template:
+    chat: |
+      {{- if .System }}<s> [INST] <<SYS>>
+      {{- .System }}
+      <</SYS>>
+
+      {{- end }}{{ .Prompt }} [/INST] {{ .Response }}</s>
+    completion: |
+      {{ .Prompt }}
+
+- name: CodeLlama-34b-Instruct-hf.Q8_0.gguf
+  backend: llama-cpp
+  description: Imported from huggingface://MaziyarPanahi/CodeLlama-34b-Instruct-hf-GGUF/CodeLlama-34b-Instruct-hf.Q8_0.gguf
+  function:
+    grammar:
+      disable: true
+  known_usecases:
+    - chat
+  options:
+    - use_jinja: true
+  parameters:
+    model: huggingface://MaziyarPanahi/CodeLlama-34b-Instruct-hf-GGUF/CodeLlama-34b-Instruct-hf.Q8_0.gguf
+    gpu_layers: -1        # -ngl 35 (adjust based on your GPU VRAM)
+    context_size: 32768   # -c 32768 (can reduce if needed: 8192, 16384)
+    temperature: 0.7      # --temp 0.7
+    repeat_penalty: 1.1   # --repeat_penalty 1.1
+    max_tokens: -1        # -n -1 (unlimited, or set a specific number)
+    top_p: 0.9
+    top_k: 40
+  template:
+    use_tokenizer_template: true
